@@ -1,2 +1,70 @@
-# tpconf_bin_xml
-Command line utility to convert TP-Link router backup config files
+# tpconf_bin_xml.py
+
+Simple command line utility to convert TP-Link TD-W9970 modem router backup config files from binary to XML and back:
+- conf.bin ➡ decrypt, md5hash and uncompress ➡ conf.xml
+- conf.xml ➡ compress, md5hash and encrypt ➡ conf.bin
+
+*May or may not work with other TP-Link modem / routers (not tested)*
+
+## Getting Started
+
+Single python file, download, optionally chmod +x, and  run.
+
+First, download a backup conf.bin file from your router using its web interface (System Tools → Backup & Restore → Backup).
+
+`[python3] tpconf_bin_xml.py -h`
+
+`[python3] tpconf_bin_xml.py conf.bin conf.xml` # decrypt, md5hash and uncompress
+
+*optionally make changes to conf.xml*
+
+`[python3] tpconf_bin_xml.py conf.xml conf.bin` # compress, md5hash and encrypt
+
+### Prerequisites
+
+- Python 3.x
+- pycrypto
+  - apt install python3-crypto
+  - *OR* pip install pycrypto
+  - *OR* pip install pycryptodome
+
+## Why?
+
+To recover your router's account/password or simply make changes to your router's configuration using the XML file.
+
+### Exploring inside the router (advanced users)
+
+To explore inside your router you can start by adding the following line to the *\<DeviceInfo\>* section of your router's configuration XML:
+
+> \<Description val="300Mbps Wireless N USB VDSL/ADSL Modem Router\`telnetd -p 1023 -l login\`"\>
+
+After uploading the new configuration you can telnet to your router's port 1023 and login using: admin/1234. *(Leaving this port open without changing the password is a security risk)*
+
+The TD-W9970's configuration XML Description val is executed by ash around 20 seconds after boot (~ 35 seconds from power on).
+
+A drive connected to the TD-W9970's USB port will be mounted around 4 seconds later.  So it is possible to directly execute a script located on the USB drive during boot using something like this (note that all [XML special characters](https://stackoverflow.com/questions/1091945/what-characters-do-i-need-to-escape-in-xml-documents) must be escaped):
+
+> \<Description val="Modem Router\`(sleep 10;/var/usbdisk/sda1/myscript)\&amp;\`"\>
+
+You can download the latest **busybox-mips** from the [busybox binaries](https://busybox.net/downloads/binaries/) repository and run it from your USB drive to have a more complete set of command line tools.
+
+For debugging you can download a pre-compiled **gdbserver** that works on the TD-W9970 from the TL-WR940N V5's code repository at [TP-Link GPL Code Center](https://www.tp-link.com/en/support/gpl-code-center).
+
+Your (latest busybox) scripts or cross-compiled programs can also control LED lights on the TD-W9970 modem router using:
+
+`printf "%02x%02x" lednum ledmode > /proc/tplink/led_ctrl`
+
+Where *lednum* is:
+- 2 = Internet
+- 3 = WPS (padlock)
+- 17 = Power
+- 18 = USB
+- 20 to 23 = LAN1-4
+
+And *ledmode* is:
+- 0 = off
+- 1 = on
+- 3 = flash slow
+- 4 = flash fast
+- 5 = flash fast pause
+- 7 = flash fast 5 times + slow pause
