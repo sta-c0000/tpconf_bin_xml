@@ -220,6 +220,12 @@ if __name__ == '__main__':
             with open(args.outfile, 'wb') as f:
                 f.write(src[16:])
         elif src[20:27] == b'<\0\0?xml':  # compressed XML
+            if unpack_from(packint, src, 16)[0] > 0x20000:
+                packint = '<I' if packint == '>I' else '>I'
+                if unpack_from(packint, src, 16)[0] > 0x20000:
+                    print('ERROR: compressed size too large for a TP-Link config file!')
+                    exit()
+                print('OK: wrong endianness, automatically switching. (see -h)')
             print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
             dst = uncompress(src[16:])
             if args.newline:
