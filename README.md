@@ -52,6 +52,10 @@ alias b='/var/usbdisk/sda1/busybox-mips'
 for c in $(b --list); do alias $c="b $c"; done
 ```
 
+SSH can be used instead of telnet to log in to your router.  You can download a recent compatible (MIPS32 version 1) [**dropbear_static** ssh server compiled by Martin Cracauer](https://github.com/cracauer/mFI-mPower-updated-sshd).  Follow the instructions in the README there to set up the needed host keys (on a real PC: `apt install dropbear-bin`).  The router's /etc is read-only, so you'll need to start *dropbear_static* with the *-r* option for each key, pointing to your usb drive, e.g.: `-r /var/usbdisk/sda1/ssh/dropbear_ecdsa_host_key`
+
+Once you've made changes to the admin password / added new accounts, simply copy the passwd file to your usb; then your startup script can copy it over during each boot, e.g.: `cp -af /var/usbdisk/sda1/etc/passwd /var/passwd`
+
 For debugging you can download a pre-compiled **gdbserver** that works on the TD-W9970 from the TL-WR940N V5's code repository at [TP-Link GPL Code Center](https://www.tp-link.com/en/support/gpl-code-center).
 
 Your (latest busybox) scripts or cross-compiled programs can also control LED lights on the TD-W9970 modem router using:
