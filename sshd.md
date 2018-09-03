@@ -1,6 +1,6 @@
 ## Running sshd on the TP-Link TD-W9970 modem router
 
-The official Openssh server (sshd deamon) can be made to work on the TP-Link modem router.  It consumes more RAM than dropbear, however it is the standard and can provide chrooted sftp.
+The official OpenSSH server (sshd deamon) can be made to work on the TP-Link modem router.  It consumes more RAM than dropbear, however it is the standard and can provide chrooted sftp.
 
 You can create a host key for the router on your PC (do not use passphrase for host keys!):
 ```sh
@@ -23,14 +23,14 @@ To enable admin (root) logins using keys, you can use the following line in your
 ```
 PermitRootLogin prohibit-password
 ```
-Copy the contents of the public keys (.pub) you want to use to login to admin (root) to ```/var/usbdisk/sda1/root/.ssh/``` assuming you've also updated the passwd file's admin home directory field with ```/var/usbdisk/sda1/root/```
+Copy the contents of the public keys (.pub) you want to use to login to admin (root) to ```/var/usbdisk/sda1/root/.ssh/authorized_keys``` assuming you've also updated the passwd file's admin home directory field with ```/var/usbdisk/sda1/root/```
 
 You will need to add to your passwd file an sshd privilege separation user; and optionally an sftp user (*sftp-user* can be named whatever you want):
 ```
 sshd:x:74:74:Privilege separation user:/var/empty:nologin
 sftp-user:x:1001:1001:sftp user:/var/usbdisk/sda1/home/sftp:/bin/sh
 ```
-For key based password-less access, simply append the contents of the public keys (*.pub) wanting access to a */var/usbdisk/sda1/home/sftp/.ssh/authorized_keys* file.
+For key based password-less access, simply append the contents of the public keys (*.pub) wanting access to a ```/var/usbdisk/sda1/home/sftp/.ssh/authorized_keys``` file.
 
 If you want to enable password access for the *sftp-user*, you can simply replace the *x* (password field) with a password generated using this command on your PC:
 ```sh

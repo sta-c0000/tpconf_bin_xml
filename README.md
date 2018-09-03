@@ -46,6 +46,7 @@ A drive connected to the TD-W9970's USB port will be mounted around 4 seconds la
 <Description val="Modem Router`(sleep 10;/var/usbdisk/sda1/myscript)&gt;/dev/null &amp;`" />
 ```
 Unfortunately TP-Link did not include ext4 filesystem support in their Linux kernel, only FAT and NTFS (fuse).  Using NTFS consumes a few more MB of RAM (running ntfs-3g) than FAT32, but offers the significant advantage of supporting symbolic links and large files.
+
 You can download the latest **busybox-mips** from the [busybox binaries](https://busybox.net/downloads/binaries/) repository and run it from your USB drive to have a more complete set of command line tools.  To get started very quickly, even using a FAT filesystem, you could source (.) something like this:
 
 ```sh
@@ -55,7 +56,7 @@ for c in $(b --list); do alias $c="b $c"; done
 
 SSH can be used instead of telnet to log in to your router.  You can download a recent compatible (MIPS32 version 1) [**dropbear_static** ssh server compiled by Martin Cracauer](https://github.com/cracauer/mFI-mPower-updated-sshd).  Follow the instructions in the README there to set up the needed host keys (on a real PC: `apt install dropbear-bin`).  The router's /etc is read-only, so you'll need to start *dropbear_static* with the *-r* option for each key, pointing to your USB drive, e.g.: `-r /var/usbdisk/sda1/ssh/dropbear_ecdsa_host_key`
 
-Alternatively you can use the pre-compiled Openssh sshd daemon in this repository; read my [sshd notes](sshd.md) for more information.
+Alternatively you can use the pre-compiled OpenSSH sshd daemon in this repository; read the **[sshd notes](sshd.md)** for more information.
 
 Once you've made changes to the admin password / added new accounts, simply copy the passwd file to your usb; then your startup script can copy it over during each boot, e.g.: `cp -af /var/usbdisk/sda1/etc/passwd /var/passwd`
 
