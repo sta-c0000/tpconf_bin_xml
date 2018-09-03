@@ -45,14 +45,17 @@ A drive connected to the TD-W9970's USB port will be mounted around 4 seconds la
 ```xml
 <Description val="Modem Router`(sleep 10;/var/usbdisk/sda1/myscript)&gt;/dev/null &amp;`" />
 ```
-You can download the latest **busybox-mips** from the [busybox binaries](https://busybox.net/downloads/binaries/) repository and run it from your USB drive to have a more complete set of command line tools.  To get started very quickly, even with a non-ext2 USB drive, you could source (.) something like this:
+Unfortunately TP-Link did not include ext4 filesystem support in their Linux kernel, only FAT and NTFS (fuse).  Using NTFS consumes a few more MB of RAM (running ntfs-3g) than FAT32, but offers the significant advantage of supporting symbolic links and large files.
+You can download the latest **busybox-mips** from the [busybox binaries](https://busybox.net/downloads/binaries/) repository and run it from your USB drive to have a more complete set of command line tools.  To get started very quickly, even using a FAT filesystem, you could source (.) something like this:
 
 ```sh
 alias b='/var/usbdisk/sda1/busybox-mips'
 for c in $(b --list); do alias $c="b $c"; done
 ```
 
-SSH can be used instead of telnet to log in to your router.  You can download a recent compatible (MIPS32 version 1) [**dropbear_static** ssh server compiled by Martin Cracauer](https://github.com/cracauer/mFI-mPower-updated-sshd).  Follow the instructions in the README there to set up the needed host keys (on a real PC: `apt install dropbear-bin`).  The router's /etc is read-only, so you'll need to start *dropbear_static* with the *-r* option for each key, pointing to your usb drive, e.g.: `-r /var/usbdisk/sda1/ssh/dropbear_ecdsa_host_key`
+SSH can be used instead of telnet to log in to your router.  You can download a recent compatible (MIPS32 version 1) [**dropbear_static** ssh server compiled by Martin Cracauer](https://github.com/cracauer/mFI-mPower-updated-sshd).  Follow the instructions in the README there to set up the needed host keys (on a real PC: `apt install dropbear-bin`).  The router's /etc is read-only, so you'll need to start *dropbear_static* with the *-r* option for each key, pointing to your USB drive, e.g.: `-r /var/usbdisk/sda1/ssh/dropbear_ecdsa_host_key`
+
+Alternatively you can use the pre-compiled Openssh sshd daemon in this repository; read my [sshd notes](sshd.md) for more information.
 
 Once you've made changes to the admin password / added new accounts, simply copy the passwd file to your usb; then your startup script can copy it over during each boot, e.g.: `cp -af /var/usbdisk/sda1/etc/passwd /var/passwd`
 
@@ -78,3 +81,16 @@ And *ledmode* is:
 - 4 = flash fast
 - 5 = flash fast pause
 - 7 = flash fast 5 times + slow pause
+
+### How do I get my favourite tool running on the router?
+
+Sadly due to lack of Broadcom xDSL support it is difficult at this time to run OpenWrt while using xDSL with this modem.  However, it is possible to cross-compile many console / server programs and run them directly on this device using a script on your USB drive (see above).
+The TD-W9970 has a 600Mhz dual-core CPU with ≈64MB.  If you know which built-in services you do not need, you can first disable them via the web interface, then kill remaining unused processes to free up the RAM they use in order to run many of your own tools and services.  For example:
+```sh
+sleep 15 # give router opportunity to finish setting up before we cleanup and setup our own services
+killall -1 upnpd  # SIGHUP required to kill upnpd
+killall telnetd dyndns noipdns cwmp ushare # etc. - make sure you do not depend on any of the services you kill
+# setup my services here
+```
+The easiest way to cross compile popular tools for this device is by using [Buildroot](https://buildroot.org/).  Compiling static binaries using uClibc will generate small efficient portable executables. 
+Some Buidroot settings to use for this device are: Target options: Architecture = *MIPS (big endian)*, Binary Format = *ELF*, Architecture Variant = *Generic MIPS32*, use soft-float; Build options: strip target binaries, libraries = static only; Toolchain: C library = *uClibc-ng*.
