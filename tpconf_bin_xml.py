@@ -27,7 +27,7 @@ from struct import pack_into, unpack_from
 
 from Crypto.Cipher import DES   # apt install python3-crypto (OR pip install pycryptodome ?)
 
-__version__ = '0.1'
+__version__ = '0.2'
 
 def compress(src):
     '''Compress buffer'''
@@ -173,6 +173,21 @@ def uncompress(src):
             d_p += 1
     return dst
 
+def verify(src):
+    # Try md5 hash excluding up to last 8 (padding) bytes
+    if not any(src[:16] == md5(src[16:len(src)-i]).digest() for i in range(8)):
+        print('ERROR: Bad file or could not decrypt file - MD5 hash check failed!')
+        exit()
+
+def check_size_endianness(src):
+    global packint
+    if unpack_from(packint, src)[0] > 0x20000:
+        packint = '<I' if packint == '>I' else '>I'
+        if unpack_from(packint, src)[0] > 0x20000:
+            print('ERROR: compressed size too large for a TP-Link config file!')
+            exit()
+        print('OK: wrong endianness, automatically switching. (see -h)')
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='TP-Link router config file processor.')
     parser.add_argument('infile', help='input file (e.g. conf.bin or conf.xml)')
@@ -206,33 +221,36 @@ if __name__ == '__main__':
         with open(args.outfile, 'wb') as f:
             f.write(crypto.encrypt(md5(dst[:size]).digest() + dst))
     else:
+        xml = None
         # Assuming encrypted config file
         if len(src) & 7: # Encrypted file length must be multiple of 8
             print('ERROR: Wrong input file type!')
             exit()
         src = crypto.decrypt(src)
-        # Try md5 hash excluding up to last 8 (padding) bytes
-        if not any(src[:16] == md5(src[16:len(src)-i]).digest() for i in range(8)):
-            print('ERROR: Bad file or could not decrypt file - MD5 hash check failed!')
-            exit()
         if src[16:21] == b'<?xml':  # XML (not compressed?)
+            verify(src)
             print('OK: BIN file decrypted, MD5 hash verified…')
-            with open(args.outfile, 'wb') as f:
-                f.write(src[16:])
-        elif src[20:27] == b'<\0\0?xml':  # compressed XML
-            if unpack_from(packint, src, 16)[0] > 0x20000:
-                packint = '<I' if packint == '>I' else '>I'
-                if unpack_from(packint, src, 16)[0] > 0x20000:
-                    print('ERROR: compressed size too large for a TP-Link config file!')
-                    exit()
-                print('OK: wrong endianness, automatically switching. (see -h)')
+            xml = src[16:]
+        elif src[20:27] == b'<\0\0?xml':  # compressed XML (W9970)
+            verify(src)
+            src = src[16:]
+            check_size_endianness(src)
             print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
-            dst = uncompress(src[16:])
-            if args.newline:
-                if dst[-1] == 0:    # NULL
-                    dst[-1] = 0xa   # LF
-            with open(args.outfile, 'wb') as f:
-                f.write(dst)
+            xml = uncompress(src)
+        elif src[22:29] == b'<\0\0?xml':  # compressed XML (W9980)
+            check_size_endianness(src)
+            print('OK: BIN file decrypted, uncompressing…')
+            dst = uncompress(src)
+            verify(dst)
+            print('OK: MD5 hash verified')
+            xml = dst[16:]
         else:
             print('ERROR: Unrecognized file type!')
+            exit()
+
+        if args.newline:
+            if xml[-1] == 0:    # NULL
+                xml[-1] = 0xa   # LF
+        with open(args.outfile, 'wb') as f:
+            f.write(xml)
     print('Done.')
