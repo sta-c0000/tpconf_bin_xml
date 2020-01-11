@@ -27,7 +27,7 @@ from struct import pack_into, unpack_from
 
 from Crypto.Cipher import DES   # apt install python3-crypto (OR pip install pycryptodome ?)
 
-__version__ = '0.2'
+__version__ = '0.2.1'
 
 def compress(src):
     '''Compress buffer'''
@@ -216,10 +216,17 @@ if __name__ == '__main__':
         src = f.read()
 
     if src.startswith(b'<?xml'):
-        print('OK: XML file - compressing, hashing and encrypting…')
-        size, dst = compress(src)
-        with open(args.outfile, 'wb') as f:
-            f.write(crypto.encrypt(md5(dst[:size]).digest() + dst))
+        if b'W9980' in src:
+            print('OK: W9980 XML file - hashing, compressing and encrypting…')
+            md5hash = md5(src).digest()
+            size, dst = compress(md5hash + src)
+            with open(args.outfile, 'wb') as f:
+                f.write(crypto.encrypt(bytes(dst)))
+        else:
+            print('OK: XML file - compressing, hashing and encrypting…')
+            size, dst = compress(src)
+            with open(args.outfile, 'wb') as f:
+                f.write(crypto.encrypt(md5(dst[:size]).digest() + dst))
     else:
         xml = None
         # Assuming encrypted config file
