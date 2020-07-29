@@ -27,7 +27,7 @@ from struct import pack_into, unpack_from
 
 from Crypto.Cipher import DES   # apt install python3-crypto (OR pip install pycryptodome ?)
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 def compress(src):
     '''Compress buffer'''
@@ -216,8 +216,8 @@ if __name__ == '__main__':
         src = f.read()
 
     if src.startswith(b'<?xml'):
-        if b'W9980' in src:
-            print('OK: W9980 XML file - hashing, compressing and encrypting…')
+        if b'W9980' in src or b'W8980' in src:
+            print('OK: W9980/W8980 XML file - hashing, compressing and encrypting…')
             md5hash = md5(src).digest()
             size, dst = compress(md5hash + src)
             with open(args.outfile, 'wb') as f:
@@ -244,7 +244,7 @@ if __name__ == '__main__':
             check_size_endianness(src)
             print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
             xml = uncompress(src)
-        elif src[22:29] == b'<\0\0?xml':  # compressed XML (W9980)
+        elif src[22:29] == b'<\0\0?xml':  # compressed XML (W9980/W8980)
             check_size_endianness(src)
             print('OK: BIN file decrypted, uncompressing…')
             dst = uncompress(src)
