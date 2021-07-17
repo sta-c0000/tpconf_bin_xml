@@ -27,9 +27,9 @@ from struct import pack_into, unpack_from
 
 from Crypto.Cipher import DES   # apt install python3-crypto (OR pip install pycryptodome ?)
 
-__version__ = '0.2.3'
+__version__ = '0.2.4'
 
-def compress(src):
+def compress(src, skiphits=False):
     '''Compress buffer'''
     # Make sure last byte is NULL
     if src[-1]:
@@ -96,15 +96,17 @@ def compress(src):
                 if count == buffer_countdown:
                     break
             if count >= 4 or count == buffer_countdown:
-                hit = s_p - hit
+                hit = s_p - hit - 1
                 put_bit(1)
-                hit -= 1
                 put_dict_ld(count - 2)
                 put_dict_ld((hit >> 8) + 2)
                 dst[d_p] = hit & 0xFF
                 d_p += 1
                 buffer_countdown -= count
                 s_p += count
+                if skiphits:
+                    hash_table[hash_key(s_ph)] = s_ph
+                    s_ph += count
                 continue
         put_bit(0)
         dst[d_p] = src[s_p]
@@ -235,8 +237,15 @@ if __name__ == '__main__':
             with open(args.outfile, 'wb') as f:
                 f.write(crypto.encrypt(bytes(dst)))
         else:
+            skiphits = False
+            if b'Archer' in src:
+                if packint == '>I':
+                    print('OK: automatically switching endianness. (see -h)')
+                    packint = '<I'
+                if b'Archer C2 ' in src: # TODO: diff for C20? or all Archer models?
+                    skiphits = True
             print('OK: XML file - compressing, hashing and encrypting…')
-            size, dst = compress(src)
+            size, dst = compress(src, skiphits)
             with open(args.outfile, 'wb') as f:
                 f.write(crypto.encrypt(md5(dst[:size]).digest() + dst))
     else:
