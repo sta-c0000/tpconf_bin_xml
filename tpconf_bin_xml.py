@@ -27,7 +27,7 @@ from struct import pack_into, unpack_from
 
 from Crypto.Cipher import DES   # apt install python3-crypto (OR pip install pycryptodome ?)
 
-__version__ = '0.2.4'
+__version__ = '0.2.5'
 
 def compress(src, skiphits=False):
     '''Compress buffer'''
@@ -242,7 +242,8 @@ if __name__ == '__main__':
                 if packint == '>I':
                     print('OK: automatically switching endianness. (see -h)')
                     packint = '<I'
-                if b'Archer C2 ' in src: # TODO: diff for C20? or all Archer models?
+                # Older Archer C2 & C20 v1 skiphits, newer v4 & v5 don't
+                if b'Archer C2 v1' in src or b'Archer C20 v1' in src:
                     skiphits = True
             print('OK: XML file - compressing, hashing and encrypting…')
             size, dst = compress(src, skiphits)
