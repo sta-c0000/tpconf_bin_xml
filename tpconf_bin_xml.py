@@ -27,7 +27,7 @@ from struct import pack_into, unpack_from
 
 from Crypto.Cipher import DES   # apt install python3-crypto (OR pip install pycryptodome ?)
 
-__version__ = '0.2.5'
+__version__ = '0.2.6'
 
 def compress(src, skiphits=False):
     '''Compress buffer'''
@@ -188,7 +188,9 @@ def check_size_endianness(src):
         if unpack_from(packint, src)[0] > 0x20000:
             print('ERROR: compressed size too large for a TP-Link config file!')
             exit()
-        print('OK: wrong endianness, automatically switching. (see -h)')
+        print('WARNING: wrong endianness, automatically switching. (see -h)')
+    endianness = 'little' if packint == '<I' else 'big'
+    print(f'OK: appears your device uses {endianness}-endian.')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='TP-Link router config file processor.')
@@ -239,9 +241,8 @@ if __name__ == '__main__':
         else:
             skiphits = False
             if b'Archer' in src:
-                if packint == '>I':
-                    print('OK: automatically switching endianness. (see -h)')
-                    packint = '<I'
+                if packint == '>I': # Archer models can be little or big-endian!
+                    print('WARNING: make sure you are using correct endianness. (see -h)')
                 # Older Archer C2 & C20 v1 skiphits, newer v4 & v5 don't
                 if b'Archer C2 v1' in src or b'Archer C20 v1' in src:
                     skiphits = True
