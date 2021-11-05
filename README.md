@@ -1,10 +1,11 @@
 # tpconf_bin_xml.py
 
-Simple command line utility to convert TP-Link TD-W9970 and TD-W9980 (_thanks to [d3dave](https://github.com/d3dave)_) modem router backup config files from binary to XML and back:
+Simple command line utility to convert TP-Link modem/router backup config files from binary to XML and back:
 - conf.bin ➡ decrypt, md5hash and uncompress ➡ conf.xml
 - conf.xml ➡ compress, md5hash and encrypt ➡ conf.bin
 
-*May or may not work with other TP-Link modem / routers (not tested)*
+*Should work for TP-Link models: TD-W8970, TD-W8980, TD-W9970, TD-W9980 (thanks d3dave), Archer VR900, C2 and C20.*<br>
+*May or may not work with other TP-Link modem/routers, newer firmwares.*
 
 ## Getting Started
 
@@ -12,32 +13,33 @@ Single python file, download, optionally chmod +x, and  run.
 
 First, download a backup conf.bin file from your router using its web interface (System Tools → Backup & Restore → Backup).
 ```sh
-[python3] tpconf_bin_xml.py -h
-[python3] tpconf_bin_xml.py conf.bin conf.xml # decrypt, md5hash and uncompress
+[python3] tpconf_bin_xml.py -h                # show help
+[python3] tpconf_bin_xml.py conf.bin conf.xml # convert bin to XML
 ```
-*optionally make changes to conf.xml*
+*(optionally make changes to conf.xml)*
 ```sh
-[python3] tpconf_bin_xml.py conf.xml conf_new.bin # compress, md5hash and encrypt
+[python3] tpconf_bin_xml.py conf.xml conf_new.bin # convert XML to bin
 ```
 ### Prerequisites
 
 - Python 3.x
-- pycrypto
-  - apt install python3-crypto
-  - *OR* pip install pycrypto
-  - *OR* pip install pycryptodome
+- pycryptodome
+  - apt install python3-pycryptodome # for Debian type distro
+  - *OR* (for other platforms)
+  - pip install pycryptodome
 
 ## Why?
 
 To recover your router's account/password or simply make changes to your router's configuration using the XML file.
 
-### Exploring inside the router (advanced users)
+### Exploring inside the router (advanced users *at own risk*)
+*Note: the following is for the TP-Link TD-W9970;  Other routers may differ (e.g. CPU architecture and/or endianness, LEDs), adapt as necessary.*
 
 To explore inside your router you can start by adding the following line to the *\<DeviceInfo\>* section of your router's configuration XML:
 ```xml
 <Description val="300Mbps Wireless N USB VDSL/ADSL Modem Router`telnetd -p 1023 -l login`" />
 ```
-After converting to .bin and uploading this new configuration you can telnet to your router's port 1023 and login using: admin/1234. *(Leaving this port open without changing the password is a security risk)*
+After converting to .bin and uploading this new configuration you can telnet to your router's port 1023 and login using: admin/1234. *(with admin/root access you could potentially brick your router; you should change the admin password; leaving this port open is a security risk!)*
 
 The TD-W9970's configuration XML Description val is passed as a quoted parameter when launching upnpd (regarless if disabled in config) using sh -c around 20 seconds after boot (~ 35 seconds from power on).
 
@@ -47,7 +49,7 @@ A drive connected to the TD-W9970's USB port will be mounted around 4 seconds la
 ```
 Unfortunately TP-Link did not include ext4 filesystem support in their Linux kernel, only FAT and NTFS (fuse).  Using NTFS consumes a few more MB of RAM (running ntfs-3g) than FAT32, but offers the significant advantage of supporting symbolic links and large files.
 
-You can download the latest **busybox-mips** from the [busybox binaries](https://busybox.net/downloads/binaries/) repository and run it from your USB drive to have a more complete set of command line tools.  To get started very quickly, even using a FAT filesystem, you could source (.) something like this:
+You can download the latest **busybox-mips** *(if your router uses a big-endian MIPS32 CPU)* from the [busybox binaries](https://busybox.net/downloads/binaries/) repository and run it from your USB drive to have a more complete set of command line tools.  To get started very quickly, even using a FAT filesystem, you could source (.) something like this:
 
 ```sh
 alias b='/var/usbdisk/sda1/busybox-mips'
@@ -56,7 +58,7 @@ for c in $(b --list); do alias $c="b $c"; done
 
 SSH can be used instead of telnet to log in to your router.  You can download a recent compatible (MIPS32 version 1) [**dropbear_static** ssh server compiled by Martin Cracauer](https://github.com/cracauer/mFI-mPower-updated-sshd).  Follow the instructions in the README there to set up the needed host keys (on a real PC: `apt install dropbear-bin`).  The router's /etc is read-only, so you'll need to start *dropbear_static* with the *-r* option for each key, pointing to your USB drive, e.g.: `-r /var/usbdisk/sda1/ssh/dropbear_ecdsa_host_key`
 
-Alternatively you can use the pre-compiled OpenSSH sshd daemon in this repository; read the **[sshd notes](sshd.md)** for more information.
+Alternatively you can use the pre-compiled (big-endian MIPS) OpenSSH sshd daemon in this repository; read the **[sshd notes](sshd.md)** for more information.
 
 Once you've made changes to the admin password / added new accounts, simply copy the passwd file to your usb; then your startup script can copy it over during each boot, e.g.: `cp -af /var/usbdisk/sda1/etc/passwd /var/passwd`
 
@@ -91,9 +93,15 @@ The TD-W9970 has a single core 600Mhz dual-CPU with ≈64MB of RAM.  If you know
 sleep 15 # give router opportunity to finish setting up before we cleanup and setup our own services
 killall -1 upnpd  # SIGHUP required to kill upnpd
 killall telnetd dyndns noipdns cwmp ushare # etc. - make sure you do not depend on any of the services you kill
-# setup my services here
+iptables -D INPUT -p udp -m udp --dport 161 -j ACCEPT # example to delete firewall's SNMP ACCEPT
+
+# setup my services...
+export TZ=EST+05:00EDT,M3.2.0/2,M11.1.0/2 # set timezone, e.g.: EST/EDT
+export PATH='/var/usbdisk/sda1/bin:/sbin:/usr/sbin:/bin:/usr/bin' # insert USB drive's /bin into path
+cp -af /var/usbdisk/sda1/etc/passwd /var/passwd # copy modified passwd file (accounts/passwords)
+# can run your own binaries to background here
 ```
-The easiest way to cross compile popular tools for this device is by using [Buildroot](https://buildroot.org/).  Compiling static binaries using uClibc will generate small efficient portable executables. 
+The easiest way to cross compile popular tools for this device is by using [Buildroot](https://buildroot.org/).  Compiling static binaries using uClibc will generate small efficient portable executables.
 Some Buidroot settings to use for this device are: Target options: Architecture = *MIPS (big endian)*, Binary Format = *ELF*, Architecture Variant = *Generic MIPS32*, use soft-float; Build options: strip target binaries, libraries = static only; Toolchain: C library = *uClibc-ng*.
 
 ### Converting `/etc/default_config.xml` and `/etc/reduced_data_model.xml`
