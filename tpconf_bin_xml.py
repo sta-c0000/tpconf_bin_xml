@@ -181,6 +181,14 @@ def verify(src):
         print('ERROR: Bad file or could not decrypt file - MD5 hash check failed!')
         exit()
 
+def verify_ec230(src):
+    length = unpack_from(packint, src, 16)[0]
+    payload = src[20:][:length]
+    if src[:16] != md5(payload).digest():
+        print('ERROR: Bad file or could not decrypt file - MD5 hash check failed!')
+        exit()
+    return payload
+
 def check_size_endianness(src):
     global packint
     if unpack_from(packint, src)[0] > 0x20000:
@@ -274,6 +282,14 @@ if __name__ == '__main__':
             verify(dst)
             print('OK: MD5 hash verified')
             xml = dst[16:]
+        elif src[24:31] == b'<\0\0?xml':  # compressed XML (EC-230)
+            '''
+            payload md5 (16b) | payload size (4b) | payload
+            '''
+            check_size_endianness(src[16:])
+            src = verify_ec230(src)
+            print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
+            xml = uncompress(src)
         else:
             print('ERROR: Unrecognized file type!')
             exit()
