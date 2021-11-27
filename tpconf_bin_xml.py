@@ -23,7 +23,7 @@
 import argparse
 from hashlib import md5
 from os import path
-from struct import pack_into, unpack_from
+from struct import pack, pack_into, unpack_from
 
 from Crypto.Cipher import DES   # apt install python3-crypto (OR pip install pycryptodome ?)
 
@@ -210,6 +210,7 @@ if __name__ == '__main__':
                         help='Replace EOF NULL with newline (after uncompress)')
     parser.add_argument('-o', '--overwrite', action='store_true',
                         help='Overwrite output file')
+    parser.add_argument('--ec230', action='store_true', help='EC230 mode')
     args = parser.parse_args()
 
     if path.getsize(args.infile) > 0x20000:
@@ -228,12 +229,15 @@ if __name__ == '__main__':
         src = f.read()
 
     if src.startswith(b'<?xml'):
-        if b'W9980' in src or b'W8980' in src:
+        if args.ec230:
+            print('OK: XML file - compressing, hashing and encrypting…')
+            size, dst = compress(src, True)
+            md5hash = md5(dst[:size]).digest()
+            dst = md5hash + pack(packint, size) + bytes(dst)
+        elif b'W9980' in src or b'W8980' in src:
             print('OK: W9980/W8980 XML file - hashing, compressing and encrypting…')
             md5hash = md5(src).digest()
             size, dst = compress(md5hash + src)
-            with open(args.outfile, 'wb') as f:
-                f.write(crypto.encrypt(bytes(dst)))
         elif b'W8970' in src:
             print('OK: W8970 XML file - hashing and encrypting…')
             # Make sure last byte is NULL
@@ -241,11 +245,6 @@ if __name__ == '__main__':
                 src += b'\0'
             md5hash = md5(src).digest()
             dst = md5hash + src
-            # data length for encryption must be multiple of 8
-            while len(dst) & 7:
-                dst += b'\0'
-            with open(args.outfile, 'wb') as f:
-                f.write(crypto.encrypt(bytes(dst)))
         else:
             skiphits = False
             if b'Archer' in src:
@@ -256,8 +255,13 @@ if __name__ == '__main__':
                     skiphits = True
             print('OK: XML file - compressing, hashing and encrypting…')
             size, dst = compress(src, skiphits)
-            with open(args.outfile, 'wb') as f:
-                f.write(crypto.encrypt(md5(dst[:size]).digest() + dst))
+            md5hash = md5(dst[:size]).digest()
+            dst = md5hash + bytes(dst)
+
+        # data length for encryption must be multiple of 8
+        while len(dst) & 7:
+            dst += b'\0'
+        output = crypto.encrypt(bytes(dst))
     else:
         xml = None
         # Assuming encrypted config file
@@ -297,6 +301,8 @@ if __name__ == '__main__':
         if args.newline:
             if xml[-1] == 0:    # NULL
                 xml[-1] = 0xa   # LF
-        with open(args.outfile, 'wb') as f:
-            f.write(xml)
+        output = xml
+
+    with open(args.outfile, 'wb') as f:
+        f.write(output)
     print('Done.')
