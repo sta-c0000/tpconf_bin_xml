@@ -120,10 +120,7 @@ def compress(src, skiphits=False):
         d_p += 1
         buffer_countdown -= 1
     pack_into('H', dst, d_pb, (block16_dict_bits << block16_countdown) & 0xFFFF)
-
-    padded = (d_p | 7) + 1 if d_p & 7 else d_p # multiple of 8 alignment
-
-    return d_p, dst[:padded]    # size, padded_compressed_buffer
+    return d_p, dst[:d_p]    # size, compressed buffer
 
 def uncompress(src):
     '''Uncompress buffer'''
@@ -259,8 +256,8 @@ if __name__ == '__main__':
             dst = md5hash + bytes(dst)
 
         # data length for encryption must be multiple of 8
-        while len(dst) & 7:
-            dst += b'\0'
+        if len(dst) & 7:
+            dst += b'\0' * (8 - (len(dst) & 7))
         output = crypto.encrypt(bytes(dst))
     else:
         xml = None
