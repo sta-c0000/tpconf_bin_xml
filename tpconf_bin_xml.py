@@ -23,7 +23,7 @@
 import argparse
 from hashlib import md5
 from os import path
-from struct import pack_into, unpack_from
+from struct import pack, pack_into, unpack_from
 
 from Crypto.Cipher import DES   # apt install python3-crypto (OR pip install pycryptodome ?)
 
@@ -120,10 +120,7 @@ def compress(src, skiphits=False):
         d_p += 1
         buffer_countdown -= 1
     pack_into('H', dst, d_pb, (block16_dict_bits << block16_countdown) & 0xFFFF)
-
-    padded = (d_p | 7) + 1 if d_p & 7 else d_p # multiple of 8 alignment
-
-    return d_p, dst[:padded]    # size, padded_compressed_buffer
+    return d_p, dst[:d_p]    # size, compressed buffer
 
 def uncompress(src):
     '''Uncompress buffer'''
@@ -181,6 +178,14 @@ def verify(src):
         print('ERROR: Bad file or could not decrypt file - MD5 hash check failed!')
         exit()
 
+def verify_ec230(src):
+    length = unpack_from(packint, src, 16)[0]
+    payload = src[20:][:length]
+    if src[:16] != md5(payload).digest():
+        print('ERROR: Bad file or could not decrypt file - MD5 hash check failed!')
+        exit()
+    return payload
+
 def check_size_endianness(src):
     global packint
     if unpack_from(packint, src)[0] > 0x20000:
@@ -202,6 +207,7 @@ if __name__ == '__main__':
                         help='Replace EOF NULL with newline (after uncompress)')
     parser.add_argument('-o', '--overwrite', action='store_true',
                         help='Overwrite output file')
+    parser.add_argument('--ec230', action='store_true', help='EC230 mode')
     args = parser.parse_args()
 
     if path.getsize(args.infile) > 0x20000:
@@ -220,12 +226,15 @@ if __name__ == '__main__':
         src = f.read()
 
     if src.startswith(b'<?xml'):
-        if b'W9980' in src or b'W8980' in src:
+        if args.ec230:
+            print('OK: XML file - compressing, hashing and encrypting…')
+            size, dst = compress(src, True)
+            md5hash = md5(dst[:size]).digest()
+            dst = md5hash + pack(packint, size) + bytes(dst)
+        elif b'W9980' in src or b'W8980' in src:
             print('OK: W9980/W8980 XML file - hashing, compressing and encrypting…')
             md5hash = md5(src).digest()
             size, dst = compress(md5hash + src)
-            with open(args.outfile, 'wb') as f:
-                f.write(crypto.encrypt(bytes(dst)))
         elif b'W8970' in src:
             print('OK: W8970 XML file - hashing and encrypting…')
             # Make sure last byte is NULL
@@ -233,11 +242,6 @@ if __name__ == '__main__':
                 src += b'\0'
             md5hash = md5(src).digest()
             dst = md5hash + src
-            # data length for encryption must be multiple of 8
-            while len(dst) & 7:
-                dst += b'\0'
-            with open(args.outfile, 'wb') as f:
-                f.write(crypto.encrypt(bytes(dst)))
         else:
             skiphits = False
             if b'Archer' in src:
@@ -248,8 +252,13 @@ if __name__ == '__main__':
                     skiphits = True
             print('OK: XML file - compressing, hashing and encrypting…')
             size, dst = compress(src, skiphits)
-            with open(args.outfile, 'wb') as f:
-                f.write(crypto.encrypt(md5(dst[:size]).digest() + dst))
+            md5hash = md5(dst[:size]).digest()
+            dst = md5hash + bytes(dst)
+
+        # data length for encryption must be multiple of 8
+        if len(dst) & 7:
+            dst += b'\0' * (8 - (len(dst) & 7))
+        output = crypto.encrypt(bytes(dst))
     else:
         xml = None
         # Assuming encrypted config file
@@ -274,6 +283,14 @@ if __name__ == '__main__':
             verify(dst)
             print('OK: MD5 hash verified')
             xml = dst[16:]
+        elif src[24:31] == b'<\0\0?xml':  # compressed XML (EC-230)
+            '''
+            payload md5 (16b) | payload size (4b) | payload
+            '''
+            check_size_endianness(src[16:])
+            src = verify_ec230(src)
+            print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
+            xml = uncompress(src)
         else:
             print('ERROR: Unrecognized file type!')
             exit()
@@ -281,6 +298,8 @@ if __name__ == '__main__':
         if args.newline:
             if xml[-1] == 0:    # NULL
                 xml[-1] = 0xa   # LF
-        with open(args.outfile, 'wb') as f:
-            f.write(xml)
+        output = xml
+
+    with open(args.outfile, 'wb') as f:
+        f.write(output)
     print('Done.')
