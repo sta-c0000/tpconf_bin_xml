@@ -27,7 +27,7 @@ from struct import pack, pack_into, unpack_from
 
 from Crypto.Cipher import DES   # apt install python3-crypto (OR pip install pycryptodome ?)
 
-__version__ = '0.2.6'
+__version__ = '0.2.7'
 
 def compress(src, skiphits=False):
     '''Compress buffer'''
@@ -178,7 +178,7 @@ def verify(src):
         print('ERROR: Bad file or could not decrypt file - MD5 hash check failed!')
         exit()
 
-def verify_ec230(src):
+def verify_ac1350(src):
     length = unpack_from(packint, src, 16)[0]
     payload = src[20:][:length]
     if src[:16] != md5(payload).digest():
@@ -207,7 +207,6 @@ if __name__ == '__main__':
                         help='Replace EOF NULL with newline (after uncompress)')
     parser.add_argument('-o', '--overwrite', action='store_true',
                         help='Overwrite output file')
-    parser.add_argument('--ec230', action='store_true', help='EC230 mode')
     args = parser.parse_args()
 
     if path.getsize(args.infile) > 0x20000:
@@ -226,8 +225,8 @@ if __name__ == '__main__':
         src = f.read()
 
     if src.startswith(b'<?xml'):
-        if args.ec230:
-            print('OK: XML file - compressing, hashing and encrypting…')
+        if b'1350 v' in src: # AC1350 (Archer C60) and ISP variants
+            print('OK: AC1350 XML file - compressing, hashing and encrypting…')
             size, dst = compress(src, True)
             md5hash = md5(dst[:size]).digest()
             dst = md5hash + pack(packint, size) + bytes(dst)
@@ -259,6 +258,7 @@ if __name__ == '__main__':
         if len(dst) & 7:
             dst += b'\0' * (8 - (len(dst) & 7))
         output = crypto.encrypt(bytes(dst))
+
     else:
         xml = None
         # Assuming encrypted config file
@@ -283,12 +283,12 @@ if __name__ == '__main__':
             verify(dst)
             print('OK: MD5 hash verified')
             xml = dst[16:]
-        elif src[24:31] == b'<\0\0?xml':  # compressed XML (EC-230)
+        elif src[24:31] == b'<\0\0?xml':  # compressed XML (AC1350)
             '''
             payload md5 (16b) | payload size (4b) | payload
             '''
             check_size_endianness(src[16:])
-            src = verify_ec230(src)
+            src = verify_ac1350(src)
             print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
             xml = uncompress(src)
         else:
