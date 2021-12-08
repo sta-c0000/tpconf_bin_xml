@@ -4,7 +4,7 @@ Simple command line utility to convert TP-Link modem/router backup config files 
 - conf.bin ➡ decrypt, md5hash and uncompress ➡ conf.xml
 - conf.xml ➡ compress, md5hash and encrypt ➡ conf.bin
 
-*Should work for TP-Link models: TD-W8970, TD-W8980, TD-W9970, TD-W9980 (thanks d3dave), Archer VR900, C2 and C20.*<br>
+*Should work for TP-Link models: TD-W8970, TD-W8980, TD-W9970, TD-W9980 (thanks d3dave), Archer VR900, C2, C20 and C60 (d3dave).*<br>
 *May or may not work with other TP-Link modem/routers, newer firmwares.*
 
 ## Getting Started
