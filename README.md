@@ -9,16 +9,16 @@ Simple command line utility to convert TP-Link modem/router backup config files 
 
 ## Getting Started
 
-Single python file, download, optionally chmod +x, and  run.
+Single python file, [download](https://github.com/sta-c0000/tpconf_bin_xml/raw/master/tpconf_bin_xml.py), optionally chmod +x, and  run.
 
 First, download a backup conf.bin file from your router using its web interface (System Tools → Backup & Restore → Backup).
 ```sh
-[python3] tpconf_bin_xml.py -h                # show help
-[python3] tpconf_bin_xml.py conf.bin conf.xml # convert bin to XML
+python3 tpconf_bin_xml.py -h                # show help
+python3 tpconf_bin_xml.py conf.bin conf.xml # convert bin to XML
 ```
 *(optionally make changes to conf.xml)*
 ```sh
-[python3] tpconf_bin_xml.py conf.xml conf_new.bin # convert XML to bin
+python3 tpconf_bin_xml.py conf.xml conf_new.bin # convert XML to bin
 ```
 ### Prerequisites
 
