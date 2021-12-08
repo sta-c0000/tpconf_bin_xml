@@ -23,11 +23,12 @@
 import argparse
 from hashlib import md5
 from os import path
+import re
 from struct import pack, pack_into, unpack_from
 
 from Crypto.Cipher import DES   # apt install python3-crypto (OR pip install pycryptodome ?)
 
-__version__ = '0.2.7'
+__version__ = '0.2.8'
 
 def compress(src, skiphits=False):
     '''Compress buffer'''
@@ -247,7 +248,7 @@ if __name__ == '__main__':
                 if packint == '>I': # Archer models can be little or big-endian!
                     print('WARNING: make sure you are using correct endianness. (see -h)')
                 # Older Archer C2 & C20 v1 skiphits, newer v4 & v5 don't
-                if b'Archer C2 v1' in src or b'Archer C20 v1' in src:
+                if re.search(b'Archer C2[0-9]?[A-z]? v1', src):
                     skiphits = True
             print('OK: XML file - compressing, hashing and encrypting…')
             size, dst = compress(src, skiphits)
