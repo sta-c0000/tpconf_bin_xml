@@ -26,7 +26,7 @@ python3 tpconf_bin_xml.py conf.xml conf_new.bin # convert XML to bin
 - pycryptodome
   - apt install python3-pycryptodome # for Debian type distro
   - *OR* (for other platforms)
-  - pip install pycryptodome
+  - pip install pycryptodomex
 
 ## Why?
 

@@ -26,9 +26,9 @@ from os import path
 import re
 from struct import pack, pack_into, unpack_from
 
-from Crypto.Cipher import DES   # apt install python3-crypto (OR pip install pycryptodome ?)
+from Cryptodome.Cipher import DES # apt install python3-pycryptodome (OR: pip install pycryptodomex)
 
-__version__ = '0.2.8'
+__version__ = '0.2.9'
 
 def compress(src, skiphits=False):
     '''Compress buffer'''
