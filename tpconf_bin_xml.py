@@ -28,7 +28,7 @@ from struct import pack, pack_into, unpack_from
 
 from Cryptodome.Cipher import DES # apt install python3-pycryptodome (OR: pip install pycryptodomex)
 
-__version__ = '0.2.9'
+__version__ = '0.2.10'
 
 def compress(src, skiphits=False):
     '''Compress buffer'''
@@ -248,7 +248,8 @@ if __name__ == '__main__':
                 if packint == '>I': # Archer models can be little or big-endian!
                     print('WARNING: make sure you are using correct endianness. (see -h)')
                 # Older Archer C2 & C20 v1 skiphits, newer v4 & v5 don't
-                if re.search(b'Archer C2[0-9]?[A-z]? v1', src):
+                # don't apply if VR1600v otherwise won't parse correctly
+                if re.search(b'Archer C2[0-9]?[A-z]? v1', src) and not b'VR1600v' in src:
                     skiphits = True
             print('OK: XML file - compressing, hashing and encrypting…')
             size, dst = compress(src, skiphits)
