@@ -226,7 +226,7 @@ if __name__ == '__main__':
         src = f.read()
 
     if src.startswith(b'<?xml'):
-        if b'1350 v' in src: # AC1350 (Archer C60) and ISP variants
+        if b'1350 v' in src or b'EC230' in src: # AC1350 (Archer C60) and ISP variants
             print('OK: AC1350 XML file - compressing, hashing and encrypting…')
             size, dst = compress(src, True)
             md5hash = md5(dst[:size]).digest()
