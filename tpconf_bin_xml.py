@@ -28,7 +28,7 @@ from struct import pack, pack_into, unpack_from
 
 from Cryptodome.Cipher import DES # apt install python3-pycryptodome (OR: pip install pycryptodomex)
 
-__version__ = '0.2.9'
+__version__ = '0.2.10'
 
 def compress(src, skiphits=False):
     '''Compress buffer'''
@@ -242,6 +242,17 @@ if __name__ == '__main__':
                 src += b'\0'
             md5hash = md5(src).digest()
             dst = md5hash + src
+        elif b'WR841N v14' in src: # lock to v14, seems varied between versions otherwise
+            print('OK: WR841N v14 XML file - compressing, hashing and encrypting…')
+            if packint == '>I':
+                print('WARNING: wrong endianess, automatically setting little. (see -h)')
+                packint = '<I'
+            size, dst = compress(src, False) 
+            # seems like the router wants compessed data multiple of 8  
+            if len(dst) & 7:
+                dst += b'\0' * (8 - (len(dst) & 7))         
+            md5hash = md5(dst).digest()
+            dst = md5hash + bytes(dst)
         else:
             skiphits = False
             if b'Archer' in src:
