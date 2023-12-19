@@ -28,7 +28,7 @@ from struct import pack, pack_into, unpack_from
 
 from Cryptodome.Cipher import DES # apt install python3-pycryptodome (OR: pip install pycryptodomex)
 
-__version__ = '0.2.10'
+__version__ = '0.2.11'
 
 def compress(src, skiphits=False):
     '''Compress buffer'''
@@ -206,6 +206,8 @@ if __name__ == '__main__':
                         help='Use little-endian (default: big-endian)')
     parser.add_argument('-n', '--newline', action='store_true',
                         help='Replace EOF NULL with newline (after uncompress)')
+    parser.add_argument('-s', '--skiphits', action='store_true',
+                        help='"skiphits" (less) compression (xml to bin) (some Archer models)')
     parser.add_argument('-o', '--overwrite', action='store_true',
                         help='Overwrite output file')
     args = parser.parse_args()
@@ -247,14 +249,14 @@ if __name__ == '__main__':
             if packint == '>I':
                 print('WARNING: wrong endianess, automatically setting little. (see -h)')
                 packint = '<I'
-            size, dst = compress(src, False) 
-            # seems like the router wants compessed data multiple of 8  
+            size, dst = compress(src, False)
+            # seems like the router wants compessed data multiple of 8
             if len(dst) & 7:
-                dst += b'\0' * (8 - (len(dst) & 7))         
+                dst += b'\0' * (8 - (len(dst) & 7))
             md5hash = md5(dst).digest()
             dst = md5hash + bytes(dst)
         else:
-            skiphits = False
+            skiphits = args.skiphits
             if b'Archer' in src:
                 if packint == '>I': # Archer models can be little or big-endian!
                     print('WARNING: make sure you are using correct endianness. (see -h)')
