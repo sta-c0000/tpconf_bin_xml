@@ -30,6 +30,10 @@ from Cryptodome.Cipher import DES # apt install python3-pycryptodome (OR: pip in
 
 __version__ = '0.2.11'
 
+KEYS = {
+    'default': b'\x47\x8D\xA5\x0B\xF9\xE3\xD2\xCF',
+}
+
 def compress(src, skiphits=False):
     '''Compress buffer'''
     # Make sure last byte is NULL
@@ -221,7 +225,7 @@ if __name__ == '__main__':
 
     packint = '<I' if args.littleendian else '>I'
 
-    key = b'\x47\x8D\xA5\x0B\xF9\xE3\xD2\xCF'
+    key = KEYS['default']
     crypto = DES.new(key, DES.MODE_ECB)
 
     with open(args.infile, 'rb') as f:
