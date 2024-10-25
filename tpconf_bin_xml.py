@@ -251,7 +251,7 @@ if __name__ == '__main__':
         elif b'WR841N v14' in src: # lock to v14, seems varied between versions otherwise
             print('OK: WR841N v14 XML file - compressing, hashing and encrypting…')
             if packint == '>I':
-                print('WARNING: wrong endianess, automatically setting little. (see -h)')
+                print('WARNING: wrong endianness, automatically setting little. (see -h)')
                 packint = '<I'
             size, dst = compress(src, False)
             # seems like the router wants compessed data multiple of 8
