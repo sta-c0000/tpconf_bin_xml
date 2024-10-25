@@ -28,7 +28,7 @@ from struct import pack, pack_into, unpack_from
 
 from Cryptodome.Cipher import DES # apt install python3-pycryptodome (OR: pip install pycryptodomex)
 
-__version__ = '0.2.11'
+__version__ = '0.2.12'
 
 KEYS = {
     'default': b'\x47\x8D\xA5\x0B\xF9\xE3\xD2\xCF',
