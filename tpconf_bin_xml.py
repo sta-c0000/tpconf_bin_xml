@@ -28,7 +28,12 @@ from struct import pack, pack_into, unpack_from
 
 from Cryptodome.Cipher import DES # apt install python3-pycryptodome (OR: pip install pycryptodomex)
 
-__version__ = '0.2.11'
+__version__ = '0.2.12'
+
+KEYS = {
+    'default': b'\x47\x8D\xA5\x0B\xF9\xE3\xD2\xCF',
+    'xz005-g6-un-v1': b'\x45\xEE\x92\x32\xCF\x5B\x1D\xFE',
+}
 
 def compress(src, skiphits=False):
     '''Compress buffer'''
@@ -221,13 +226,12 @@ if __name__ == '__main__':
 
     packint = '<I' if args.littleendian else '>I'
 
-    key = b'\x47\x8D\xA5\x0B\xF9\xE3\xD2\xCF'
-    crypto = DES.new(key, DES.MODE_ECB)
-
     with open(args.infile, 'rb') as f:
         src = f.read()
 
     if src.startswith(b'<?xml'):
+        key = KEYS['default']
+
         if b'1350 v' in src or b'EC230' in src: # AC1350 (Archer C60) and ISP variants
             print('OK: AC1350 XML file - compressing, hashing and encrypting…')
             size, dst = compress(src, True)
@@ -247,12 +251,21 @@ if __name__ == '__main__':
         elif b'WR841N v14' in src: # lock to v14, seems varied between versions otherwise
             print('OK: WR841N v14 XML file - compressing, hashing and encrypting…')
             if packint == '>I':
-                print('WARNING: wrong endianess, automatically setting little. (see -h)')
+                print('WARNING: wrong endianness, automatically setting little. (see -h)')
                 packint = '<I'
             size, dst = compress(src, False)
             # seems like the router wants compessed data multiple of 8
             if len(dst) & 7:
                 dst += b'\0' * (8 - (len(dst) & 7))
+            md5hash = md5(dst).digest()
+            dst = md5hash + bytes(dst)
+        elif b'XZ005-G6 v1.0' in src and b'(EU)' in src: # XZ005-G6(UN) V1.0 (advertised as "UN" but has "EU" in XML)
+            print('OK: XZ005-G6(UN) V1.0 XML file - compressing, hashing and encrypting…')
+            key = KEYS['xz005-g6-un-v1']
+            if packint == '<I':
+                print('WARNING: wrong endianness, automatically setting big. (see -h)')
+                packint = '>I'
+            size, dst = compress(src, False)
             md5hash = md5(dst).digest()
             dst = md5hash + bytes(dst)
         else:
@@ -271,6 +284,8 @@ if __name__ == '__main__':
         # data length for encryption must be multiple of 8
         if len(dst) & 7:
             dst += b'\0' * (8 - (len(dst) & 7))
+
+        crypto = DES.new(key, DES.MODE_ECB)
         output = crypto.encrypt(bytes(dst))
 
     else:
@@ -279,34 +294,46 @@ if __name__ == '__main__':
         if len(src) & 7: # Encrypted file length must be multiple of 8
             print('ERROR: Wrong input file type!')
             exit()
-        src = crypto.decrypt(src)
-        if src[16:21] == b'<?xml':  # XML (not compressed?)
-            verify(src)
-            print('OK: BIN file decrypted, MD5 hash verified…')
-            xml = src[16:]
-        elif src[20:27] == b'<\0\0?xml':  # compressed XML (W9970)
-            verify(src)
-            src = src[16:]
-            check_size_endianness(src)
-            print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
-            xml = uncompress(src)
-        elif src[22:29] == b'<\0\0?xml':  # compressed XML (W9980/W8980)
-            check_size_endianness(src)
-            print('OK: BIN file decrypted, uncompressing…')
-            dst = uncompress(src)
-            verify(dst)
-            print('OK: MD5 hash verified')
-            xml = dst[16:]
-        elif src[24:31] == b'<\0\0?xml':  # compressed XML (AC1350)
-            '''
-            payload md5 (16b) | payload size (4b) | payload
-            '''
-            check_size_endianness(src[16:])
-            src = verify_ac1350(src)
-            print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
-            xml = uncompress(src)
+
+        for key in KEYS.values():
+            crypto = DES.new(key, DES.MODE_ECB)
+            decrypted = crypto.decrypt(src)
+
+            if decrypted[16:21] == b'<?xml':  # XML (not compressed?)
+                verify(decrypted)
+                print('OK: BIN file decrypted, MD5 hash verified…')
+                xml = decrypted[16:]
+            elif decrypted[20:27] == b'<\0\0?xml':  # compressed XML (W9970/XZ005-G6(UN) V1.0)
+                verify(decrypted)
+                decrypted = decrypted[16:]
+                check_size_endianness(decrypted)
+                print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
+                xml = uncompress(decrypted)
+            elif decrypted[22:29] == b'<\0\0?xml':  # compressed XML (W9980/W8980)
+                check_size_endianness(decrypted)
+                print('OK: BIN file decrypted, uncompressing…')
+                dst = uncompress(decrypted)
+                verify(dst)
+                print('OK: MD5 hash verified')
+                xml = dst[16:]
+            elif decrypted[24:31] == b'<\0\0?xml':  # compressed XML (AC1350)
+                '''
+                payload md5 (16b) | payload size (4b) | payload
+                '''
+                check_size_endianness(decrypted[16:])
+                decrypted = verify_ac1350(decrypted)
+                print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
+                xml = uncompress(decrypted)
+            else:
+                print('WARNING: Unrecognized file type when using this key! Attempting next one.')
+                crypto = None
+
+            # XML data found, decryption/decompression succeeded for this key.
+            if xml is not None:
+                break
+
         else:
-            print('ERROR: Unrecognized file type!')
+            print('ERROR: Unrecognized file type and no known keys left!')
             exit()
 
         if args.newline:
