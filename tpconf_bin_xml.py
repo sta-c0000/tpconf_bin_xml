@@ -192,6 +192,14 @@ def verify_ac1350(src):
         exit()
     return payload
 
+def verify_ac3150_v2(src):
+    verifiable_chunk_size = unpack_from(packint, src, 20)[0]
+    verifiable_chunk = src[16:][:verifiable_chunk_size]
+    if src[:16] != md5(verifiable_chunk).digest():
+        print('ERROR: Bad file or could not decrypt file - MD5 hash check failed!')
+        exit()
+    return src[16:20] + src[24:]
+
 def check_size_endianness(src):
     global packint
     if unpack_from(packint, src)[0] > 0x20000:
@@ -324,6 +332,16 @@ if __name__ == '__main__':
                 decrypted = verify_ac1350(decrypted)
                 print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
                 xml = uncompress(decrypted)
+            elif decrypted[39:50] == b'<?xml vers\0':  # compressed XML (AC3150 V2)
+                '''
+                payload md5 (16b) | payload uncompressed size (4b) | md5-verifiable chunk size (4b) | payload
+                                    -------------------------------------------------------------------------
+                                                              md5-verifiable chunk
+                '''
+                check_size_endianness(decrypted[20:])
+                decrypted = verify_ac3150_v2(decrypted)
+                dst = uncompress(decrypted)
+                xml = dst[20:]
             else:
                 print('WARNING: Unrecognized file type when using this key! Attempting next one.')
                 crypto = None
