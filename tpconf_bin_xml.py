@@ -240,7 +240,17 @@ if __name__ == '__main__':
     if src.startswith(b'<?xml'):
         key = KEYS['default']
 
-        if b'1350 v' in src or b'EC230' in src or b'VR1210v' in src: # AC1350 (Archer C60) and ISP variants
+        if b'3150 v2' in src:
+            print('OK: AC3150 v2 XML file - compressing, hashing and encrypting…')
+            magic = b"\1\0P1_\0\0\0\0\0UR\0\0\0\0\0\0\0\0"
+            src = magic + src
+            verifiable_chunk_size, dst = compress(src, True)
+            payload_size = dst[:4]
+            verifiable_chunk_size += len(payload_size)
+            dst = payload_size + pack(packint, verifiable_chunk_size) + dst[4:]
+            md5hash = md5(dst).digest()
+            dst = md5hash + dst
+        elif b'1350 v' in src or b'EC230' in src or b'VR1210v' in src: # AC1350 (Archer C60) and ISP variants
             print('OK: AC1350 XML file - compressing, hashing and encrypting…')
             size, dst = compress(src, True)
             md5hash = md5(dst[:size]).digest()
