@@ -242,8 +242,13 @@ if __name__ == '__main__':
 
         if b'3150 v2' in src:
             print('OK: AC3150 v2 XML file - compressing, hashing and encrypting…')
-            magic = b"\1\0P1_\0\0\0\0\0UR\0\0\0\0\0\0\0\0"
-            src = magic + src
+            match = re.match(b"^(.+\r?\n)<!-- Header: (.{40}) -->\r?\n(.+)$", src, re.DOTALL)
+            if not match:
+                print('ERROR: Header comment not found!')
+                exit()
+            prefix, header, postfix = match.groups()
+            header = bytes.fromhex(header.decode('ascii'))
+            src = header + prefix + postfix
             verifiable_chunk_size, dst = compress(src, True)
             payload_size = dst[:4]
             verifiable_chunk_size += len(payload_size)
@@ -351,7 +356,9 @@ if __name__ == '__main__':
                 check_size_endianness(decrypted[20:])
                 decrypted = verify_ac3150_v2(decrypted)
                 dst = uncompress(decrypted)
-                xml = dst[20:]
+                lines = dst[20:].splitlines(True)
+                lines.insert(1, f"<!-- Header: {dst[:20].hex()} -->\n".encode())
+                xml = bytes().join(lines)
             else:
                 print('WARNING: Unrecognized file type when using this key! Attempting next one.')
                 crypto = None
