@@ -192,6 +192,14 @@ def verify_ac1350(src):
         exit()
     return payload
 
+def verify_ac3150_v2(src):
+    verifiable_chunk_size = unpack_from(packint, src, 20)[0]
+    verifiable_chunk = src[16:][:verifiable_chunk_size]
+    if src[:16] != md5(verifiable_chunk).digest():
+        print('ERROR: Bad file or could not decrypt file - MD5 hash check failed!')
+        exit()
+    return src[16:20] + src[24:]
+
 def check_size_endianness(src):
     global packint
     if unpack_from(packint, src)[0] > 0x20000:
@@ -232,7 +240,22 @@ if __name__ == '__main__':
     if src.startswith(b'<?xml'):
         key = KEYS['default']
 
-        if b'1350 v' in src or b'EC230' in src or b'VR1210v' in src: # AC1350 (Archer C60) and ISP variants
+        if b'3150 v2' in src:
+            print('OK: AC3150 v2 XML file - compressing, hashing and encrypting…')
+            match = re.match(b"^(.+\r?\n)<!-- Header: (.{40}) -->\r?\n(.+)$", src, re.DOTALL)
+            if not match:
+                print('ERROR: Header comment not found!')
+                exit()
+            prefix, header, postfix = match.groups()
+            header = bytes.fromhex(header.decode('ascii'))
+            src = header + prefix + postfix
+            verifiable_chunk_size, dst = compress(src, True)
+            payload_size = dst[:4]
+            verifiable_chunk_size += len(payload_size)
+            dst = payload_size + pack(packint, verifiable_chunk_size) + dst[4:]
+            md5hash = md5(dst).digest()
+            dst = md5hash + dst
+        elif b'1350 v' in src or b'EC230' in src or b'VR1210v' in src: # AC1350 (Archer C60) and ISP variants
             print('OK: AC1350 XML file - compressing, hashing and encrypting…')
             size, dst = compress(src, True)
             md5hash = md5(dst[:size]).digest()
@@ -324,6 +347,18 @@ if __name__ == '__main__':
                 decrypted = verify_ac1350(decrypted)
                 print('OK: BIN file decrypted, MD5 hash verified, uncompressing…')
                 xml = uncompress(decrypted)
+            elif decrypted[39:50] == b'<?xml vers\0':  # compressed XML (AC3150 V2)
+                '''
+                payload md5 (16b) | payload uncompressed size (4b) | md5-verifiable chunk size (4b) | payload
+                                    -------------------------------------------------------------------------
+                                                              md5-verifiable chunk
+                '''
+                check_size_endianness(decrypted[20:])
+                decrypted = verify_ac3150_v2(decrypted)
+                dst = uncompress(decrypted)
+                lines = dst[20:].splitlines(True)
+                lines.insert(1, f"<!-- Header: {dst[:20].hex()} -->\n".encode())
+                xml = bytes().join(lines)
             else:
                 print('WARNING: Unrecognized file type when using this key! Attempting next one.')
                 crypto = None
