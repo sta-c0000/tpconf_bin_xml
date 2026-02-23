@@ -33,6 +33,7 @@ __version__ = '0.2.14'
 KEYS = {
     'default': b'\x47\x8D\xA5\x0B\xF9\xE3\xD2\xCF',
     'xz005-g6-un-v1': b'\x45\xEE\x92\x32\xCF\x5B\x1D\xFE',
+    'vc220-g3u': b'\x40\xec\xc4\x3a\xca\x0a\x1d\xfe',
 }
 
 def compress(src, skiphits=False):
@@ -293,6 +294,8 @@ if __name__ == '__main__':
             dst = md5hash + bytes(dst)
         else:
             skiphits = args.skiphits
+            if b'VC220-G3u' in src:
+                key = KEYS['vc220-g3u']
             if b'Archer' in src:
                 if packint == '>I': # Archer models can be little or big-endian!
                     print('WARNING: make sure you are using correct endianness. (see -h)')
