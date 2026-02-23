@@ -117,13 +117,13 @@ On the v1 firmware DES keys are stored in `libcmm.so`. The locations of the keys
 ```
 Therefore to decrypt `default_config.xml` and `reduced_data_model.xml` after copying the files to a PC:
 ```sh
-openssl enc -d -des-ecb -nopad -K 478DA50FF9E3D2CB -in default_config.xml -out default_config_decrypted.xml
-openssl enc -d -des-ecb -nopad -K 478DA50FF9E3D2CB -in reduced_data_model.xml -out reduced_data_model_decrypted.xml
+openssl enc -d -des-ecb -nopad -K 478DA50FF9E3D2CB -provider legacy -in default_config.xml -out default_config_decrypted.xml
+openssl enc -d -des-ecb -nopad -K 478DA50FF9E3D2CB -provider legacy -in reduced_data_model.xml -out reduced_data_model_decrypted.xml
 ```
 Similarly, to encrypt:
 ```sh
-openssl enc -e -des-ecb -nopad -K 478DA50FF9E3D2CB -in default_config_decrypted.xml -out default_config.xml
-openssl enc -e -des-ecb -nopad -K 478DA50FF9E3D2CB -in reduced_data_model_decrypted.xml -out reduced_data_model.xml
+openssl enc -e -des-ecb -nopad -K 478DA50FF9E3D2CB -provider legacy -in default_config_decrypted.xml -out default_config.xml
+openssl enc -e -des-ecb -nopad -K 478DA50FF9E3D2CB -provider legacy -in reduced_data_model_decrypted.xml -out reduced_data_model.xml
 ```
 Before encryption files must be *zero* padded to a file size multiple of eight.  A simple script like this could be used to do this:
 ```sh
