@@ -37,7 +37,12 @@ KEYS = {
     'vc220-g3u': b'\x40\xec\xc4\x3a\xca\x0a\x1d\xfe',
     'bsn3000x-v1': b'\x44\xBF\xC3\x3B\x9D\x0C\x1D\xFD',
     'ex221-g5v1': b'\x45\xe8\x90\x6f\x9a\x0a\x1d\xfe',
+    'ex530v-v1': b'\x40\xba\xc6\x6c\xca\x5a\x1c\xfe',
 }
+
+# Largest plausible config size; the EX530v v1.0 XML is ~135 KiB, which exceeded
+# the previous 0x20000 limit and was rejected as "too large".
+MAX_SIZE = 0x40000
 
 def compress(src, skiphits=False):
     '''Compress buffer'''
@@ -206,9 +211,9 @@ def verify_ac3150_v2(src):
 
 def check_size_endianness(src):
     global packint
-    if unpack_from(packint, src)[0] > 0x20000:
+    if unpack_from(packint, src)[0] > MAX_SIZE:
         packint = '<I' if packint == '>I' else '>I'
-        if unpack_from(packint, src)[0] > 0x20000:
+        if unpack_from(packint, src)[0] > MAX_SIZE:
             print('ERROR: compressed size too large for a TP-Link config file!')
             exit()
         print('WARNING: wrong endianness, automatically switching. (see -h)')
@@ -229,7 +234,7 @@ if __name__ == '__main__':
                         help='Overwrite output file')
     args = parser.parse_args()
 
-    if path.getsize(args.infile) > 0x20000:
+    if path.getsize(args.infile) > MAX_SIZE:
         print('ERROR: Input file too large for a TP-Link config file!')
         exit()
     if not args.overwrite and path.exists(args.outfile):
@@ -292,6 +297,15 @@ if __name__ == '__main__':
             if packint == '<I':
                 print('WARNING: wrong endianness, automatically setting big. (see -h)')
                 packint = '>I'
+            size, dst = compress(src, False)
+            md5hash = md5(dst).digest()
+            dst = md5hash + bytes(dst)
+        elif b'EX530v' in src: # EX530v v1.0 (ISP-customized), little-endian
+            print('OK: EX530v XML file - compressing, hashing and encrypting…')
+            key = KEYS['ex530v-v1']
+            if packint == '>I':
+                print('WARNING: wrong endianness, automatically setting little. (see -h)')
+                packint = '<I'
             size, dst = compress(src, False)
             md5hash = md5(dst).digest()
             dst = md5hash + bytes(dst)
